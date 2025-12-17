@@ -4,23 +4,46 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Story extends Task {
-    private List<SubTask> subTasks;
+
+    private final List<SubTask> subTasks;
     private Epic epic; // Optional: reference to parent Epic
 
     public Story(String title) {
         super(title);
+        if (title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("Story title cannot be empty.");
+        }
         this.subTasks = new ArrayList<>();
+        this.setStatus("Planned"); // default status
     }
 
+    /**
+     * Add a SubTask to this Story
+     */
     public void addSubTask(SubTask subTask) {
-        subTasks.add(subTask);
-        subTask.setStory(this); // Optional: add back-reference
+        if (subTask == null) {
+            System.out.println("❌ Cannot add null SubTask to Story.");
+            return;
+        }
+        if (!subTasks.contains(subTask)) {
+            subTasks.add(subTask);
+            subTask.setStory(this); // set back-reference
+            System.out.println("✅ SubTask '" + subTask.getTitle() + "' added to Story '" + this.getTitle() + "'");
+        } else {
+            System.out.println("⚠ SubTask '" + subTask.getTitle() + "' already exists in Story '" + this.getTitle() + "'");
+        }
     }
 
+    /**
+     * Get a copy of SubTasks
+     */
     public List<SubTask> getSubTasks() {
         return new ArrayList<>(subTasks);
     }
 
+    /**
+     * Set Epic reference
+     */
     public void setEpic(Epic epic) {
         this.epic = epic;
     }
@@ -31,6 +54,6 @@ public class Story extends Task {
 
     @Override
     public boolean isImplementationTask() {
-        return true;
+        return true; // Stories are implementation-level tasks
     }
 }

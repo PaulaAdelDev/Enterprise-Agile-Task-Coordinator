@@ -1,95 +1,112 @@
 package mile1.entity;
 
 import mile1.database.Database;
+import mile1.service.TaskService;
 
 public class ScrumMaster extends User {
 
     public ScrumMaster(String username, String password) {
-        super(username, password);
-        this.role = "ScrumMaster";
+        super(username, password, "ScrumMaster");
     }
 
     @Override
     public void viewTasks() {
-        System.out.println("Scrum Master view (all tasks):");
-        Database.tasks.forEach(System.out::println);
+        System.out.println("\n📌 Scrum Master View (All Tasks):");
+        if (Database.tasks.isEmpty()) {
+            System.out.println("No tasks in the system.");
+            return;
+        }
+
+        for (Task task : Database.tasks) {
+            System.out.println("• " + task.getTitle() +
+                    " [" + task.getClass().getSimpleName() +
+                    "] Status: " + task.getStatus());
+        }
     }
 
     public void assignTask(Task task, User user) {
+        if (task == null || user == null) {
+            System.out.println("❌ Task or user cannot be null.");
+            return;
+        }
 
         if (task.getAssignedUser() != null && task.getAssignedUser().equals(user)) {
-            System.out.println("⚠ ERROR: User '" + user.getUsername() +
+            System.out.println("⚠ User '" + user.getUsername() +
                     "' is already assigned to task '" + task.getTitle() + "'.");
             return;
         }
 
-        // Assign to Developer (initial development)
-        if((task.getStatus().equals("Created") || task.getStatus().equals("Planned"))
-                && user instanceof Developer && task.isImplementationTask()) {
+        if (!validAssignment(task, user)) {
+            System.out.println("❌ Cannot assign task '" + task.getTitle() +
+                    "' to " + user.getUsername() + " in status " + task.getStatus());
+            return;
+        }
 
-            user.assignTask(task);
+        user.assignTask(task);
+
+        // Update status based on type of user
+        if (user instanceof Developer && task.isImplementationTask() &&
+                (task.getStatus().equals("Created") || task.getStatus().equals("Planned"))) {
             task.setStatus("Planned");
-            System.out.println("Task assigned to Developer: " + user.getUsername());
-            return;
-        }
-
-        // Assign to QA (after COMPLETED by Developer)
-        if(task.getStatus().equals("Completed") && user instanceof QAEngineer) {
-            user.assignTask(task);
-            System.out.println("Task '" + task.getTitle() + "' moved to QA for testing.");
-            return;
-        }
-
-        // Assign High-Level Epic/Story to SCRUM MASTER ONLY
-        if(!task.isImplementationTask() && user instanceof ScrumMaster) {
-            user.assignTask(task);
+            System.out.println("✅ Task assigned to Developer: " + user.getUsername());
+        } else if (user instanceof QAEngineer && task.getStatus().equals("Completed")) {
+            System.out.println("✅ Task '" + task.getTitle() + "' moved to QA for testing.");
+        } else if (!task.isImplementationTask() && user instanceof ScrumMaster) {
             task.setStatus("Planned");
-            System.out.println("Epic/Story assigned to Scrum Master.");
-            return;
+            System.out.println("✅ Epic/Story assigned to Scrum Master.");
         }
-
-        System.out.println("Cannot assign task '" + task.getTitle() +
-                "' to " + user.getUsername() + " in status " + task.getStatus());
     }
-
 
     private boolean validAssignment(Task task, User user) {
+        if (task == null || user == null) return false;
 
-        // EPIC CAN BE ASSIGNED ONLY TO PRODUCT OWNER OR SCRUM MASTER
-        if(!task.isImplementationTask() && (user instanceof Developer || user instanceof ScrumMaster))
-            return true;
+        // EPIC/Story: only ScrumMaster can take
+        if (!task.isImplementationTask() && user instanceof ScrumMaster) return true;
 
-        // IMPLEMENTATION TASKS GO TO DEVELOPERS
-        if(task.isImplementationTask() && user instanceof Developer)
-            return true;
+        // Implementation tasks: only Developers
+        if (task.isImplementationTask() && user instanceof Developer) return true;
 
-        // QA CAN ONLY TAKE TASKS AFTER COMPLETION FOR TESTING
-        if(user instanceof QAEngineer && task.getStatus().equals("Completed"))
-            return true;
-        else{
+        // QA can only take Completed tasks
+        if (user instanceof QAEngineer && task.getStatus().equals("Completed")) return true;
+
         return false;
     }
-}
 
     public void finalizeTask(Task task) {
-        if(task.getStatus().equals("Approved") || task.getStatus().equals("Tested")) {
+        if (task == null) {
+            System.out.println("❌ Task does not exist.");
+            return;
+        }
+
+        if (task.getStatus().equals("Approved") || task.getStatus().equals("Tested")) {
             task.setStatus("Done");
-            System.out.println("Task '" + task.getTitle() + "' finalized as Done.");
-        } else System.out.println("Cannot finalize task. Must be QA approved or tested first.");
+            System.out.println("✅ Task '" + task.getTitle() + "' finalized as Done.");
+        } else {
+            System.out.println("❌ Cannot finalize task. Must be QA approved or tested first.");
+        }
     }
 
-    public void breakTask(Story story, SubTask subTask) {  // Change parameter type
-        if (!(story instanceof Story)) {
-            System.out.println("ERROR: Can only break down Stories!");
+    public void breakTask(Story story, SubTask subTask) {
+        if (story == null || subTask == null) {
+            System.out.println("❌ Story or SubTask cannot be null.");
             return;
         }
 
         subTask.setCreator(this);
-        Database.tasks.add(subTask);
 
-        // Link the SubTask to the Story
+        TaskService taskService = new TaskService();
+
+        // Use service to enforce uniqueness + consistency
+        if (Database.taskExists(subTask.getTitle(), SubTask.class)) {
+            System.out.println("⚠ SubTask '" + subTask.getTitle() + "' already exists.");
+            return;
+        }
+
+        taskService.addTask(subTask);
         story.addSubTask(subTask);
-        System.out.println("Subtask '" + subTask.getTitle() +
+
+        System.out.println("✅ Subtask '" + subTask.getTitle() +
                 "' created and linked to Story '" + story.getTitle() + "'");
     }
+
 }

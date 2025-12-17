@@ -3,33 +3,45 @@ package mile1.entity;
 public class QAEngineer extends User {
 
     public QAEngineer(String username, String password) {
-        super(username, password);
-        this.role = "QAEngineer";
+        super(username, password, "QAEngineer");
     }
 
     public void testTask(Task task, String result) {
-        if(assignedTasks.contains(task) && task.getStatus().equals("Completed")) {
+        if (task == null) {
+            System.out.println("❌ Task does not exist.");
+            return;
+        }
 
-            switch(result) {
-                case "Approved" -> task.setStatus("Approved");
-                case "Rejected" -> task.setStatus("Rejected");
-                case "Tested" -> task.setStatus("Tested");
-                default -> {
-                    System.out.println("Invalid QA result. Valid options: Approved, Rejected, Tested");
-                    return; // <-- STOP so it doesn't print success
-                }
+        if (!assignedTasks.contains(task)) {
+            System.out.println("❌ You are not assigned to this task: " + task.getTitle());
+            return;
+        }
+
+        if (!task.getStatus().equals("Completed")) {
+            System.out.println("❌ Task must be 'Completed' before QA testing. Current status: " + task.getStatus());
+            return;
+        }
+
+        switch (result) {
+            case "Approved", "Rejected", "Tested" -> {
+                task.setStatus(result);
+                System.out.println("✅ QA result '" + result + "' set for task '" + task.getTitle() + "'");
             }
-
-            System.out.println("QA result '" + result + "' set for task '" + task.getTitle() + "'");
-        } else {
-            System.out.println("Cannot test task: " + task.getTitle());
+            default -> System.out.println("❌ Invalid QA result. Valid options: Approved, Rejected, Tested");
         }
     }
 
-
     @Override
     public void viewTasks() {
-        System.out.println("QA Engineer tasks:");
-        assignedTasks.forEach(System.out::println);
+        System.out.println("\n📌 QA Engineer Assigned Tasks:");
+
+        if (assignedTasks.isEmpty()) {
+            System.out.println("No tasks assigned.");
+            return;
+        }
+
+        for (Task task : assignedTasks) {
+            System.out.println("• " + task.getTitle() + " [" + task.getStatus() + "]");
+        }
     }
 }
